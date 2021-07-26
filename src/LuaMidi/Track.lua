@@ -147,20 +147,20 @@ end
 function Track:set_time_signature(num, den, midi_clocks_tick, notes_midi_clock)
    midi_clocks_tick = midi_clocks_tick or 24
    notes_midi_clock = notes_midi_clock or 8
-   den = math.log(den, 2)
+   
    local constant = Constants.META_TIME_SIGNATURE_ID
    local event = avoid_duplicate(self, constant)
    event.data[#event.data+1] = 0x04
    event.data = Util.table_concat(event.data, Util.number_to_bytes(num, 1))
-   event.data = Util.table_concat(event.data, Util.number_to_bytes(den, 1))
+   event.data = Util.table_concat(event.data, Util.number_to_bytes(math.log(den, 2), 1))
    event.data = Util.table_concat(event.data, Util.number_to_bytes(midi_clocks_tick, 1))
    event.data = Util.table_concat(event.data, Util.number_to_bytes(notes_midi_clock, 1))
    event.subtype = Constants.METADATA_TYPES[constant]
    if self.metadata['Time Signature'] then
-      self.metadata['Time Signature'] = num..'/'..math.ceil(2^den)
+      self.metadata['Time Signature'] = {num, den}
       return self
    end
-   self.metadata['Time Signature'] = num..'/'..math.ceil(2^den)
+   self.metadata['Time Signature'] = {num, den}
    return self:add_events(event)
 end
 

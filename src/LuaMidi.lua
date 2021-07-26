@@ -22,6 +22,7 @@ LuaMidi.NoteOnEvent = require 'LuaMidi.NoteOnEvent'
 LuaMidi.NoteOffEvent = require 'LuaMidi.NoteOffEvent'
 LuaMidi.ArbitraryEvent = require 'LuaMidi.ArbitraryEvent'
 LuaMidi.ProgramChangeEvent = require 'LuaMidi.ProgramChangeEvent'
+LuaMidi.GenericEvent = require 'LuaMidi.GenericEvent'
 
 -------------------------------------------------
 --- Functions
@@ -156,10 +157,13 @@ function LuaMidi.get_MIDI_tracks(path)
                   local data_bytes = {raw_track[i+3], raw_track[i+4], raw_track[i+5]}
                   local ms = LuaMidi.Util.number_from_bytes(data_bytes)
                   local bpm = LuaMidi.Util.round(60000000/ms)
-                  converted_data = tostring(ms).." ms ("..bpm.."bpm)"
+                  -- converted_data = tostring(ms).." ms ("..bpm.."bpm)"
+				  converted_data = bpm
                elseif raw_track[i+1] == LuaMidi.Constants.META_TIME_SIGNATURE_ID then
-                  converted_data = raw_track[i+3]
-                  converted_data = converted_data.."/"..math.ceil(2^raw_track[i+4])
+                  -- converted_data = raw_track[i+3]
+                  -- converted_data = converted_data.."/"..math.ceil(2^raw_track[i+4])
+				  converted_data = {raw_track[i+3], math.ceil(2^raw_track[i+4])}
+				  
                elseif raw_track[i+1] == LuaMidi.Constants.META_KEY_SIGNATURE_ID then
                   local majmin = {'major', 'minor'}
                   local keys = {{'C','A'},{'G','E'},{'D','B'},{'A','F#'},
@@ -183,7 +187,7 @@ function LuaMidi.get_MIDI_tracks(path)
             -- must test this later:
             elseif raw_track[i] < 0x80 and raw_track[i+1] == LuaMidi.Constants.PROGRAM_CHANGE_STATUS then
             
-               last_control_byte = LuaMidi.Constants.PROGRAM_CHANGE_STATUS
+               last_control_byte = raw_track[i]
                
                local event = {
                   type = 'program-change',
@@ -197,26 +201,34 @@ function LuaMidi.get_MIDI_tracks(path)
                
             elseif band(raw_track[i], 0xF0) == 0x90 then -- NOTE ON
             
-               last_control_byte = 0x90
+               last_control_byte = raw_track[i]
             
                local channel = raw_track[i]-0x8F
                local pitch = { raw_track[i+1] }
                local pitch_code = raw_track[i+1]
                local velocity = raw_track[i+2]
-               
-               local event = LuaMidi.NoteOnEvent.new({
-                  channel = channel,
-                  pitch = pitch_code,
-                  velocity = LuaMidi.Util.round(velocity / 127 * 100),
-                  timestamp = sum_timestamp(current_timestamp),
-               })
-
-               track.events[#track.events+1] = event
-               i = next_timestamp(i, 2)
+			   
+			   local eventClass
+			   
+			   if velocity > 0 then
+					eventClass = LuaMidi.NoteOnEvent
+			   else
+					eventClass = LuaMidi.NoteOffEvent
+			   end
+			   
+			  local event = eventClass.new({
+				  channel = channel,
+				  pitch = pitch_code,
+				  velocity = LuaMidi.Util.round(velocity / 127 * 100),
+				  timestamp = sum_timestamp(current_timestamp),
+			   })
+				   
+			   track.events[#track.events+1] = event
+			   i = next_timestamp(i, 2)
             
             elseif band(raw_track[i], 0xF0) == 0x80 then -- NOTE OFF
                                              
-               last_control_byte = 0x80
+               last_control_byte = raw_track[i]
                                              
                local event = LuaMidi.NoteOffEvent.new({
                   channel = band(raw_track[i], 0x0F) + 1,
@@ -225,6 +237,25 @@ function LuaMidi.get_MIDI_tracks(path)
                   timestamp = sum_timestamp(current_timestamp),
                })
                
+               track.events[#track.events+1] = event
+               i = next_timestamp(i, 2)
+			   
+			elseif band(raw_track[i], 0xF0) >= 0xA0 and band(raw_track[i], 0xF0) <= 0xE0 then
+			
+               last_control_byte = raw_track[i]
+            
+               local channel = band(raw_track[i], 0x0F) + 1
+               local msg1 = raw_track[i+1]
+               local msg2 = raw_track[i+2]
+               
+               local event = LuaMidi.GenericEvent.new({
+				  status = raw_track[i],
+                  channel = channel,
+                  msg1 = msg1,
+                  msg2 = msg2,
+                  timestamp = sum_timestamp(current_timestamp),
+               })
+
                track.events[#track.events+1] = event
                i = next_timestamp(i, 2)
                
@@ -247,7 +278,7 @@ function LuaMidi.get_MIDI_tracks(path)
          track = setmetatable(track, { __index = LuaMidi.Track })
          track_list[track_number] = track
       end
-      return track_list
+      return track_list, LuaMidi.Util.number_from_bytes({buffer[13],buffer[14]})
    end 
    return false
 end

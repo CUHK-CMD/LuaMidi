@@ -65,6 +65,19 @@ local NoteOnEvent = {}
 --
 -- @return 	new NoteOnEvent object
 -------------------------------------------------
+
+function NoteOnEvent:build_data()
+	self.data = {}
+
+	local data = Util.num_to_var_length(self.timestamp)
+	data[#data+1] = Util.get_note_on_status(self.channel)
+	data[#data+1] = Util.get_pitch(self.pitch)
+	data[#data+1] = self.velocity
+
+	local note_on = ArbitraryEvent.new({data = data})
+	self.data = Util.table_concat(self.data, note_on.data)
+end
+   
 function NoteOnEvent.new(fields)
    assert(type(fields.pitch) == 'string' or type(fields.pitch) == 'number', "'pitch' must be a string or a number")
    assert(Util.get_pitch(fields.pitch), "Invalid 'pitch' value: "..fields.pitch)
@@ -92,22 +105,10 @@ function NoteOnEvent.new(fields)
    end
    self.velocity = Util.convert_velocity(self.velocity)
    
-   self.build_data = function()
-      
-      self.data = {}
-      
-      local data = Util.num_to_var_length(self.timestamp)
-      data[#data+1] = Util.get_note_on_status(self.channel)
-      data[#data+1] = Util.get_pitch(self.pitch)
-      data[#data+1] = self.velocity
-      
-      local note_on = ArbitraryEvent.new({data = data})
-      self.data = Util.table_concat(self.data, note_on.data)
-      
-   end
-   
-   self.build_data()
-   return setmetatable(self, { __index = NoteOnEvent })
+
+   setmetatable(self, { __index = NoteOnEvent })
+   self:build_data()
+   return self
 end
 
 -------------------------------------------------
@@ -139,7 +140,7 @@ function NoteOnEvent:set_pitch(pitch)
    assert(type(pitch) == 'string' or type(pitch) == 'number', "'pitch' must be a string or a number")
    assert(Util.get_pitch(pitch), "Invalid 'pitch' value: "..pitch)
    self.pitch = pitch
-   self.build_data()
+   self:build_data()
    return self
 end
 
@@ -154,7 +155,7 @@ end
 function NoteOnEvent:set_velocity(velocity)
    assert(type(velocity) == 'number' and velocity >= 0 and velocity <= 100, "'velocity' must be an integer from 0 to 100")
    self.velocity = Util.convert_velocity(velocity)
-   self.build_data()
+   self:build_data()
    return self
 end
 
@@ -168,7 +169,7 @@ end
 function NoteOnEvent:set_channel(channel)
    assert(type(channel) == 'number' and channel >= 1 and channel <= 16, "'channel' must be an integer from 1 to 16")
    self.channel = channel
-   self.build_data()
+   self:build_data()
    return self
 end
 
@@ -182,7 +183,7 @@ end
 function NoteOnEvent:set_timestamp(timestamp)
    assert(type(timestamp) == 'number' and timestamp >= 0, "'timestamp' must be a positive integer representing the explicit number of ticks")
    self.timestamp = timestamp
-   self.build_data()
+   self:build_data()
    return self
 end
 

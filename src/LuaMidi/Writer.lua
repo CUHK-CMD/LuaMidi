@@ -30,7 +30,7 @@ local Writer = {}
 --
 -- @see Track
 -------------------------------------------------
-function Writer.new(tracks)
+function Writer.new(tracks, timeDivision)
    assert(type(tracks) == 'table' and (tracks.type or tracks[1].type), "'tracks' must be a Track object or array of Track objects")
    if #tracks == 0 and tracks.type then
       if Util.is_track_header(tracks.type) then
@@ -42,13 +42,19 @@ function Writer.new(tracks)
       tracks = tracks,
    }
    self.build_track = function(track)
+	-- print(track)
       for i=1, #track.events do
          local event = track.events[i]
-         if event.type == 'note' then
-            event.build_data()
+         if event.type == 'note' or event.type == 'generic_event' then
+            event:build_data()
          end
          track.data = Util.table_concat(track.data, event.data)
          track.size = Util.number_to_bytes(#track.data, 4)
+		 
+		 -- print("",i)
+		 -- for k,v in pairs(track.data) do
+			-- print(string.format("\t\t%s\t0x%x\t%s",k,v,string.char(v)))
+		 -- end
       end
       return track
    end
@@ -58,7 +64,7 @@ function Writer.new(tracks)
          track_type = Constants.HEADER_CHUNK_FORMAT1
       end
       local chunk_data = Util.table_concat(track_type, Util.number_to_bytes(total_tracks, 2))
-      chunk_data = Util.table_concat(chunk_data, Constants.HEADER_CHUNK_DIVISION)
+      chunk_data = Util.table_concat(chunk_data, Util.number_to_bytes(timeDivision, 2) or Constants.HEADER_CHUNK_DIVISION)
       self.data[1] = Chunk.new({
          type = Constants.HEADER_CHUNK_TYPE,
          data = chunk_data,

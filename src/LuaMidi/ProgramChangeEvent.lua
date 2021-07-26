@@ -24,11 +24,11 @@ local ProgramChangeEvent = {}
 --
 -- @return 	new ProgramChangeEvent object
 -------------------------------------------------
-function ProgramChangeEvent.new(pcnumber)
+function ProgramChangeEvent.new(channel, pcnumber)
    assert(type(pcnumber) == 'number' and pcnumber >= 0x00 and pcnumber <= 0x7F, "'pcnumber' must be an integer from 0 to 127")
    local self = {
       type = 'program-change',
-      data = { 0x00, Constants.PROGRAM_CHANGE_STATUS, pcnumber },
+      data = { 0x00, Constants.PROGRAM_CHANGE_STATUS + channel - 1, pcnumber },
    }
    return setmetatable(self, { __index = ProgramChangeEvent })
 end

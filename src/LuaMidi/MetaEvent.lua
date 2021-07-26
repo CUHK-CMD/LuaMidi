@@ -26,13 +26,24 @@ local MetaEvent = {}
 -- @return 	new MetaEvent object
 -------------------------------------------------
 function MetaEvent.new(fields)
-   local data = Util.num_to_var_length(0x00)
-   data = Util.table_concat(data, {Constants.META_EVENT_ID})
-   data = Util.table_concat(data, fields.data)
    local self = {
       type = 'meta',
-      data = data,
+      timestamp = fields.timestamp or 0,
    }
+   
+  self.build_data = function()
+      
+      self.data = {}
+      
+		local data = Util.num_to_var_length(self.timestamp)
+		data = Util.table_concat(data, {Constants.META_EVENT_ID})
+		data = Util.table_concat(data, fields.data)
+
+		self.data = data
+      
+   end
+   
+   self.build_data()
    return setmetatable(self, { __index = MetaEvent })
 end
 
@@ -40,6 +51,28 @@ end
 --- Methods
 -- @section methods
 -------------------------------------------------
+
+function MetaEvent.build_data()
+	
+end
+
+function MetaEvent:get_timestamp()
+	return self.timestamp
+end
+
+function MetaEvent:set_timestamp(timestamp)
+	self.timestamp = timestamp
+	self.build_data()
+end
+
+function MetaEvent:get_data()
+	return self.data
+end
+
+function MetaEvent:set_data(data)
+	self.data = data
+	self.build_data()
+end
 
 -------------------------------------------------
 -- Prints event's data in a human-friendly style
